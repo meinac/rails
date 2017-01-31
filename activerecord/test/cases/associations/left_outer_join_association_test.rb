@@ -24,6 +24,12 @@ class LeftOuterJoinAssociationTest < ActiveRecord::TestCase
     end
   end
 
+  def test_left_outer_joins_can_be_constructable_with_join_dependency
+    join_dependency = ActiveRecord::Associations::JoinDependency.new(Post, :author, [])
+
+    assert_equal Post.left_outer_joins(join_dependency).to_sql, Post.left_outer_joins(:author).to_sql
+  end
+
   def test_left_outer_joins_count_is_same_as_size_of_loaded_results
     assert_equal 17, Post.left_outer_joins(:comments).to_a.size
     assert_equal 17, Post.left_outer_joins(:comments).count

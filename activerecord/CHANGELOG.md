@@ -1,3 +1,7 @@
+*   Fix relation merger issue with `left_outer_joins`.
+
+    *Mehmet Emin İNAÇ*
+
 *   Omit redundant `using: :btree` for schema dumping.
 
     *Ryuta Kamizono*

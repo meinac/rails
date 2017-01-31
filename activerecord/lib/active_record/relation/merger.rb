@@ -50,7 +50,7 @@ module ActiveRecord
 
       NORMAL_VALUES = Relation::VALUE_METHODS -
                       Relation::CLAUSE_METHODS -
-                      [:includes, :preload, :joins, :order, :reverse_order, :lock, :create_with, :reordering] # :nodoc:
+                      [:includes, :preload, :joins, :left_outer_joins, :order, :reverse_order, :lock, :create_with, :reordering] # :nodoc:
 
       def normal_values
         NORMAL_VALUES
@@ -77,6 +77,7 @@ module ActiveRecord
         merge_clauses
         merge_preloads
         merge_joins
+        merge_outer_joins
 
         relation
       end
@@ -110,22 +111,47 @@ module ActiveRecord
           if other.klass == relation.klass
             relation.joins!(*other.joins_values)
           else
-            joins_dependency, rest = other.joins_values.partition do |join|
-              case join
-              when Hash, Symbol, Array
-                true
-              else
-                false
-              end
-            end
+            join_dependency, rest = partition_join_dependencies(other.joins_values)
 
-            join_dependency = ActiveRecord::Associations::JoinDependency.new(other.klass,
-                                                                             joins_dependency,
-                                                                             [])
-            relation.joins! rest
+            relation.joins!(rest)
 
-            @relation = relation.joins join_dependency
+            @relation = relation.joins(join_dependency)
           end
+        end
+
+        def merge_outer_joins
+          return if other.left_outer_joins_values.blank?
+
+          if other.klass == relation.klass
+            relation.left_outer_joins!(*other.left_outer_joins_values)
+          else
+            join_dependency, rest = partition_join_dependencies(other.left_outer_joins_values)
+
+            relation.left_outer_joins!(rest)
+
+            @relation = relation.left_outer_joins(join_dependency)
+          end
+        end
+
+        # Returns an array which consist of 2 elements.
+        # First one is an `ActiveRecord::Associations::JoinDependency`
+        # and the second one is an array of joinable objects
+        # other than Hash, Symbol, Array.
+        def partition_join_dependencies(values)
+          joins_dependency, rest = values.partition do |join|
+            case join
+            when Hash, Symbol, Array
+              true
+            else
+              false
+            end
+          end
+
+          join_dependency = ActiveRecord::Associations::JoinDependency.new(other.klass,
+                                                                           joins_dependency,
+                                                                           [])
+
+          [join_dependency, rest]
         end
 
         def merge_multi_values
