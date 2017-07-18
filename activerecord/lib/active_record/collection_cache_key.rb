@@ -10,13 +10,22 @@ module ActiveRecord
           timestamp = collection.max_by(&timestamp_column)._read_attribute(timestamp_column)
         end
       else
+        order_values = []
+        collection.orders.each do |order|
+          if order.is_a?(String)
+            order_values << order
+          else
+            order_values << "#{connection.quote_table_name(order.expr.relation.name)}.#{connection.quote_column_name(order.expr.name)}"
+          end
+        end
+
         column_type = type_for_attribute(timestamp_column.to_s)
         column = "#{connection.quote_table_name(collection.table_name)}.#{connection.quote_column_name(timestamp_column)}"
         select_values = "COUNT(*) AS #{connection.quote_column_name("size")}, MAX(%s) AS timestamp"
 
         if collection.limit_value || collection.offset_value
           query = collection.spawn
-          query.select_values = [column]
+          query.select_values = [column] + order_values
           subquery_alias = "subquery_for_cache_key"
           subquery_column = "#{subquery_alias}.#{timestamp_column}"
           subquery = query.arel.as(subquery_alias)
